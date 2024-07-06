@@ -1,63 +1,97 @@
-import pandas as pd
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.decomposition import PCA
-from sklearn.neighbors import NearestNeighbors
+def Recommender(keywords):
+    import os
+    import pandas as pd
+    from sklearn.neighbors import NearestNeighbors
+    import tensorflow as tf
+    import tensorflow_hub as hub
+    import kagglehub
+    import pickle
 
-import tensorflow as tf
-import tensorflow_hub as hub
+    os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Disable oneDNN optimizations
 
-# Load the Universal Sentence Encoder model from TensorFlow Hub
-model_url = "https://tfhub.dev/google/universal-sentence-encoder/4"
-model = hub.load(model_url)
+    # Download latest version of the model
+    try:
+        path = kagglehub.model_download("google/universal-sentence-encoder/tensorFlow2/universal-sentence-encoder")
+    except Exception as e:
+        print(f"Error downloading model: {e}")
+        path = "local_path_to_model"  # fallback to a local path if download fails
 
-print("Universal Sentence Encoder model loaded successfully.")
+    # Load the Universal Sentence Encoder model from local directory
+    try:
+        model = hub.load(path)
+        print("Universal Sentence Encoder model loaded successfully.")
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        return []
 
-df1 = pd.read_csv(r"Zerodha_Varsity.csv")
-df2 = pd.read_csv(r"Copy_of_Finance_With_Sharan.csv")
-df1 = df1.fillna('')
-df2 = df2.fillna('')
-df2.head()
+    # Load datasets
+    try:
+        df1 = pd.read_csv(r"Zerodha_Varsity.csv")
+        df2 = pd.read_csv(r"Copy_of_Finance_With_Sharan.csv")
+    except Exception as e:
+        print(f"Error loading datasets: {e}")
+        return []
 
-df = pd.concat([df1, df2], ignore_index=True)
-df.head()
+    # Fill missing values
+    df1 = df1.fillna('')
+    df2 = df2.fillna('')
 
-df = df[['Title','Description','ids']]
-df['Title_Description'] = df['Title'] + df['Description']
-# df = df[['Name', 'City']]
-df.head()
+    # Combine datasets
+    df = pd.concat([df1, df2], ignore_index=True)
 
-def embed(texts):
-    return model(texts)
+    # Keep only relevant columns
+    df = df[['Title', 'Description', 'ids']]
+    df['Title_Description'] = df['Title'] + ' ' + df['Description']
 
-titles = df['Title_Description']
-titles[0]
+    # Define embedding function with batching
+    def embed(texts, batch_size=100):
+        embeddings = []
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i+batch_size]
+            embeddings.append(model(batch))
+        return tf.concat(embeddings, axis=0)
 
-embeddings = embed(titles)
-embeddings.shape
+    embeddings_path = 'recommendation_embeddings.pkl'
+    if not os.path.exists(embeddings_path):
+        # Get embeddings for titles and descriptions
+        titles = df['Title_Description'].tolist()
+        embeddings = embed(titles)
+        
+        # Save embeddings to file
+        with open(embeddings_path, 'wb') as f:
+            pickle.dump(embeddings, f)
+        print("Embeddings saved successfully.")
+    else:
+        # Load embeddings from file
+        with open(embeddings_path, 'rb') as f:
+            embeddings = pickle.load(f)
+        print("Embeddings loaded successfully.")
 
-pca = PCA(n_components=2)
-pca_result = pca.fit_transform(embeddings)
+    # Fit Nearest Neighbors model
+    nn = NearestNeighbors(n_neighbors=10)
+    nn.fit(embeddings)
 
-import matplotlib.pyplot as plt
+    # Function to process YouTube URLs
+    yt_url = "https://www.youtube.com/watch?v="
+    def process(url):
+        return yt_url + url
 
-plt.figure(figsize=(10, 8))
-plt.scatter(pca_result[:, 0], pca_result[:, 1])
-plt.show()
+    # Function to recommend videos based on input text
+    def recommend(text):
+        try:
+            emd = embed([text])
+            neighbours = nn.kneighbors(emd, return_distance=False)[0]
+            urls = df['ids'].iloc[neighbours].tolist()
+            return [process(url) for url in urls]
+        except Exception as e:
+            print(f"Error in recommendation: {e}")
+            return []
 
-nn = NearestNeighbors(n_neighbors=10)
-nn.fit(embeddings)
+    # Get recommendations based on provided keywords
+    recommendations = recommend(keywords)
+    return recommendations
 
-yt_url = "https://www.youtube.com/watch?v="
-def process(url):
-  return yt_url + url
-
-def recommend(text):
-    emd = embed([text])
-    # idx = df[df['Title'] == title].index[0]
-    neighbours = nn.kneighbors(emd, return_distance=False)[0]
-
-    urls = df['ids'].iloc[neighbours].tolist()
-
-    return [process(url) for url in urls]
-
-recommend('different types of mutual funds')
+# Example usage
+# keywords = "financial literacy for students"
+# recommendations = Recommender(keywords)
+# print(recommendations)
