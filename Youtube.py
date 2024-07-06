@@ -52,6 +52,7 @@ def Recommender(keywords):
         return tf.concat(embeddings, axis=0)
 
     embeddings_path = 'recommendation_embeddings.pkl'
+    
     if not os.path.exists(embeddings_path):
         # Get embeddings for titles and descriptions
         titles = df['Title_Description'].tolist()
