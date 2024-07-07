@@ -45,7 +45,7 @@ def Recommender(keywords):
     df['Title_Description'] = df['Title'] + ' ' + df['Description']
 
     # Define embedding function with batching
-    def embed(texts, batch_size=100):
+    def embed(texts, batch_size=200):
         embeddings = []
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i+batch_size]
