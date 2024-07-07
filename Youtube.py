@@ -41,6 +41,7 @@ def Recommender(keywords):
 
     # Keep only relevant columns
     df = df[['Title', 'Description', 'ids']]
+    
     df['Title_Description'] = df['Title'] + ' ' + df['Description']
 
     # Define embedding function with batching
@@ -82,8 +83,9 @@ def Recommender(keywords):
         try:
             emd = embed([text])
             neighbours = nn.kneighbors(emd, return_distance=False)[0]
-            urls = df['ids'].iloc[neighbours].tolist()
-            return [process(url) for url in urls]
+            results = df.iloc[neighbours]
+            recommendations = [{'title': row['Title'], 'url': process(row['ids'])} for _, row in results.iterrows()]
+            return recommendations
         except Exception as e:
             print(f"Error in recommendation: {e}")
             return []
