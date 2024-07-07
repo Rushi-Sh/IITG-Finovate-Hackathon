@@ -26,18 +26,18 @@ def Recommender(keywords):
 
     # Load datasets
     try:
-        df1 = pd.read_csv(r"Zerodha_Varsity.csv")
-        df2 = pd.read_csv(r"Copy_of_Finance_With_Sharan.csv")
+        df1 = pd.read_csv(r"merged_dataset.csv")
+        # df2 = pd.read_csv(r"Copy_of_Finance_With_Sharan.csv")
     except Exception as e:
         print(f"Error loading datasets: {e}")
         return []
 
     # Fill missing values
     df1 = df1.fillna('')
-    df2 = df2.fillna('')
+    # df2 = df2.fillna('')
 
     # Combine datasets
-    df = pd.concat([df1, df2], ignore_index=True)
+    df = df1
 
     # Keep only relevant columns
     df = df[['Title', 'Description', 'ids']]
@@ -69,7 +69,7 @@ def Recommender(keywords):
         print("Embeddings loaded successfully.")
 
     # Fit Nearest Neighbors model
-    nn = NearestNeighbors(n_neighbors=10)
+    nn = NearestNeighbors(n_neighbors=5)
     nn.fit(embeddings)
 
     # Function to process YouTube URLs
