@@ -70,7 +70,7 @@ def Recommender(keywords):
         print("Embeddings loaded successfully.")
 
     # Fit Nearest Neighbors model
-    nn = NearestNeighbors(n_neighbors=5)
+    nn = NearestNeighbors(n_neighbors=10)
     nn.fit(embeddings)
 
     # Function to process YouTube URLs
